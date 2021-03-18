@@ -1,5 +1,4 @@
 import numpy as np
-#from math import *
 from math import floor
 from math import ceil
 from PIL import Image
@@ -15,25 +14,21 @@ class TorusCurvePolygone:
             self.resolution = resolution
         else:
             self.resolution = 1 + 41 # a changer
-        self.gamma_p = 
-        '''
-        gb, bg, plt = self.curve() # !
-        self.g_b = gb
-        self.g_b = bg
-        self.plot = plt
-        krn = self.kernel()
-        self.ker = krn[0]
-        self.dig0 = krn[1]
-        '''
+        self.boundary_points = self.getGridBoundary()
+
     '''
-    returns two times of area of the Triangle ABC.
+    A, B, and C are points. 
+    Returns two times of area of the Triangle ABC.
     '''
     @staticmethod
     def det(A, B, C):
         return A[0]*B[1]+B[0]*C[1]+C[0]*A[1]-C[0]*B[1]-A[0]*C[1]-B[0]*A[1]
-    
+
     '''
-    Test if the point C is on the segments S.
+    S is a segment.
+    C is a point.
+    Test if the point C is on the segments S. Returns True if they do
+    and False if they dont't.
     '''
     @staticmethod
     def between(S, C):
@@ -49,7 +44,9 @@ class TorusCurvePolygone:
             return False
 
     '''
-    Test if two segments intersacts.
+    S1 and S2 are segments.
+    Test if two segments intersacts. Returns True if they do 
+    and False if they don't.
     '''
     @staticmethod
     def testIntersectionOfTwoSegments(S1, S2):
@@ -62,9 +59,32 @@ class TorusCurvePolygone:
         S3 = TorusCurvePolygone.det(C, D, A)
         S4 = TorusCurvePolygone.det(C, D, B)
         return (S1*S2 < 0) and (S3*S4 < 0)
-    
+
+
     '''
-    Test if a segments and a square(4 segments) intersact
+    Returns intersection point of two segments
+    S1 and S2 are segments.(defined by two points)
+    '''
+    @staticmethod
+    def intersection(S1, S2):
+        a = S1[0][0]
+        b = S1[0][1]
+        c = S1[1][0]
+        d = S1[1][1]
+        e = S2[0][0]
+        f = S2[0][1]
+        g = S2[1][0]
+        h = S2[1][1]
+        x= ((a*d-b*c)*(e-g)-(a-c)*(e*h-f*g))/((a-c)*(f-h)-(b-d)*(e-g)) 
+        y= ((a*d-b*c)*(f-h)-(b-d)*(e*h-f*g))/((a-c)*(f-h)-(b-d)*(e-g))
+        return [x, y]
+        
+
+    '''
+    C is a square (Array with 4 points where successive points
+    represent square's sides.).
+    S is a segment.
+    Test if a segments and a square intersact. 
     '''
     @staticmethod
     def testIntersectionSegmentSquare(S, C):
@@ -80,9 +100,12 @@ class TorusCurvePolygone:
                 result = result | (1<<counter)
             counter += 1
         return result
-    
+
     '''
     Test if a point p is a boundary point of a polygon E.
+    p is a Point.
+    E is an array contains our polygon's corners where consecutive elements
+    represent polygones sides.
     '''
     @staticmethod
     def isBoundary(p, E):
@@ -106,8 +129,8 @@ class TorusCurvePolygone:
                 result = True
                 break
         return result
-    
-    
+
+
     def gpToGp01(Tips):
         x_aux, y_aux = Tips.min(axis=0)
         x = floor(x_aux)
@@ -117,6 +140,8 @@ class TorusCurvePolygone:
 
     '''
     Test if pixel c is on gamma_p of segment s.
+    c is coordinates of a pixel in range [0, resolution).
+    s is a segment.
     '''
     def testMembershipGamma_pEtPixel(self, c, s):
         unit = 1/(self.resolution)
@@ -125,18 +150,10 @@ class TorusCurvePolygone:
                           [(c[0]+1)*unit, (c[1]+1)*unit],
                           [(c[0])*unit  , (c[1]+1)*unit]])
         s01 = self.gpToGp01(s)
-        r = testIntersectionSegmentSquare(s01, carre)
+        r = TorusCurvePolygone.testIntersectionSegmentSquare(s01, carre)
         return r
-        
-    
-    '''
-    Not finished yet
-    '''
-    def inside(self, x, y):
-        return
-    
-    
-        
+
+
     '''
     Returns the boundary box.
     '''
@@ -144,14 +161,11 @@ class TorusCurvePolygone:
         x_min, y_min = self.edges.min(axis=0)
         x_max, y_max = self.edges.max(axis=0)
         return floor(x_min)-1, floor(y_min)-1, ceil(x_max)+1, ceil(y_max)+1
+
+
     '''
-    def curve(self):
-        return
-    
-    def kernel(self):
-        return
+    Returns the boundary points of Polygon.
     '''
-    
     def getGridBoundary(self):
         b_list = []
         (x_min, y_min, x_max, y_max) = self.bbox()
@@ -160,7 +174,7 @@ class TorusCurvePolygone:
                 if (self.isBoundary([x, y], self.edges)):
                     b_list.append([x, y])
         return np.array(b_list)
-    
+
     def getKernel(self): #directly from the original code
         k = set()
         for s in self.ker.values():
@@ -216,17 +230,7 @@ if __name__ == '__main__':
     
     edges = np.array([[-2, 0], [-1, 1], [2, 0], [0, -1]])
     res = 256
-    
     quad = TorusCurvePolygone(edges=edges, resolution=res)
-    segm = np.array([[0, 0], [1, 3]])
-    carre = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
-    
-    
-    p = quad.between(segm, np.array([0.5, 1.5]))
-
-    print(p)
-    
-    
     
     
     
