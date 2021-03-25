@@ -2,6 +2,7 @@ import numpy as np
 from math import floor
 from math import ceil
 from PIL import Image
+import matplotlib.pyplot as plt
 
 class TorusCurvePolygone:
 
@@ -15,21 +16,20 @@ class TorusCurvePolygone:
         else:
             self.resolution = 1 + 41 # a changer
         self.boundary_points = self.getGridBoundary()
+        self.gamma_p = self.list_gamma_p()
+        self.torus = self.draw_torus()
 
-    '''
-    A, B, and C are points. 
-    Returns two times of area of the Triangle ABC.
-    '''
+    
+    # A, B, and C are points. 
+    # Returns two times of area of the Triangle ABC.
     @staticmethod
     def det(A, B, C):
         return A[0]*B[1]+B[0]*C[1]+C[0]*A[1]-C[0]*B[1]-A[0]*C[1]-B[0]*A[1]
 
-    '''
-    S is a segment.
-    C is a point.
-    Test if the point C is on the segments S. Returns True if they do
-    and False if they dont't.
-    '''
+    # S is a segment.
+    # C is a point.
+    # Test if the point C is on the segments S. Returns True if they do
+    # and False if they dont't.
     @staticmethod
     def between(S, C):
         linear = (TorusCurvePolygone.det(S[0], S[1], C) == 0.0)
@@ -43,28 +43,30 @@ class TorusCurvePolygone:
         else:
             return False
 
-    '''
-    S1 and S2 are segments.
-    Test if two segments intersacts. Returns True if they do 
-    and False if they don't.
-    '''
+
+    # S1 and S2 are segments. S1 = 
+    # Test if two segments intersacts. Returns True if they do 
+    # and False if they don't.
     @staticmethod
     def testIntersectionOfTwoSegments(S1, S2):
-        A = S1[0]
-        B = S1[1]
-        C = S2[0]
-        D = S2[1]
-        S1 = TorusCurvePolygone.det(A, B, C)
-        S2 = TorusCurvePolygone.det(A, B, D)
-        S3 = TorusCurvePolygone.det(C, D, A)
-        S4 = TorusCurvePolygone.det(C, D, B)
-        return (S1*S2 < 0) and (S3*S4 < 0)
+        a = S1[0][0]
+        b = S1[0][1]
+        c = S1[1][0]
+        d = S1[1][1]
+        e = S2[0][0]
+        f = S2[0][1]
+        g = S2[1][0]
+        h = S2[1][1]
+        if (((a-c)*(f-h)-(b-d)*(e-g)) != 0):
+            t = ((a-e)*(f-h)-(b-f)*(e-g))/((a-c)*(f-h)-(b-d)*(e-g))
+            u = ((c-a)*(b-f)-(d-b)*(a-e))/((a-c)*(f-h)-(b-d)*(e-g))
+            return ((t >= 0) and (t < 1) and (u >= 0) and (u <= 1))
+        else:
+            print("Possible error in testIntersection two segments")
+            return False
 
-
-    '''
-    Returns intersection point of two segments
-    S1 and S2 are segments.(defined by two points)
-    '''
+    # Returns intersection point of two segments
+    # S1 and S2 are segments.(defined by two points)
     @staticmethod
     def intersection(S1, S2):
         a = S1[0][0]
@@ -77,15 +79,13 @@ class TorusCurvePolygone:
         h = S2[1][1]
         x= ((a*d-b*c)*(e-g)-(a-c)*(e*h-f*g))/((a-c)*(f-h)-(b-d)*(e-g)) 
         y= ((a*d-b*c)*(f-h)-(b-d)*(e*h-f*g))/((a-c)*(f-h)-(b-d)*(e-g))
-        return [x, y]
+        return np.array([x, y])
         
 
-    '''
-    C is a square (Array with 4 points where successive points
-    represent square's sides.).
-    S is a segment.
-    Test if a segments and a square intersact. 
-    '''
+    # C is a square (Array with 4 points where successive points
+    # represent square's sides.).
+    # S is a segment.
+    # Test if a segments and a square intersact. 
     @staticmethod
     def testIntersectionSegmentSquare(S, C):
         SC1 = np.array([C[0], C[1]])
@@ -101,18 +101,17 @@ class TorusCurvePolygone:
             counter += 1
         return result
 
-    '''
-    Test if a point p is a boundary point of a polygon E.
-    p is a Point.
-    E is an array contains our polygon's corners where consecutive elements
-    represent polygones sides.
-    '''
+    
+    # Test if a point p is a boundary point of a polygon E.
+    # p is a Point.
+    # E is an array contains our polygon's corners where consecutive elements
+    # represent polygones sides.
     @staticmethod
     def isBoundary(p, E):
-        carre = np.array([[p[0]-1, p[1]-1],
-                          [p[0]  , p[1]-1],
-                          [p[0]  , p[1]  ],
-                          [p[0]-1, p[1]  ]])
+        carre = np.array([[p[0]  , p[1]  ],
+                          [p[0]+1, p[1]  ],
+                          [p[0]+1, p[1]+1],
+                          [p[0]  , p[1]+1]])
         
         nbE = np.shape(E)[0]
         sides = np.zeros((2*nbE, 2), dtype = int)
@@ -130,7 +129,7 @@ class TorusCurvePolygone:
                 break
         return result
 
-
+    @staticmethod
     def gpToGp01(Tips):
         x_aux, y_aux = Tips.min(axis=0)
         x = floor(x_aux)
@@ -138,34 +137,36 @@ class TorusCurvePolygone:
         a = np.array([[x, y], [x, y]])
         return np.subtract(Tips, a)
 
-    '''
-    Test if pixel c is on gamma_p of segment s.
-    c is coordinates of a pixel in range [0, resolution).
-    s is a segment.
-    '''
+    # Test if pixel c is on gamma_p of segment s.
+    # c is coordinates of a pixel in range [0, resolution).
+    # s is a segment.
     def testMembershipGamma_pEtPixel(self, c, s):
         unit = 1/(self.resolution)
         carre = np.array([[(c[0])*unit  , (c[1])*unit  ],
                           [(c[0]+1)*unit, (c[1])*unit  ],
                           [(c[0]+1)*unit, (c[1]+1)*unit],
                           [(c[0])*unit  , (c[1]+1)*unit]])
-        s01 = self.gpToGp01(s)
+        s01 = TorusCurvePolygone.gpToGp01(s)
         r = TorusCurvePolygone.testIntersectionSegmentSquare(s01, carre)
         return r
 
+    def findMembershipOfPixel(self, c):
+        m_list = []
+        counter = 0
+        for i in self.gamma_p:
+            if self.testMembershipGamma_pEtPixel(c, i):
+                m_list.append(counter)
+            counter = counter+1
+        return m_list
 
-    '''
-    Returns the boundary box.
-    '''
+    # Returns the boundary box.
     def bbox(self):
         x_min, y_min = self.edges.min(axis=0)
         x_max, y_max = self.edges.max(axis=0)
         return floor(x_min)-1, floor(y_min)-1, ceil(x_max)+1, ceil(y_max)+1
 
 
-    '''
-    Returns the boundary points of Polygon.
-    '''
+    # Returns the boundary points of Polygon.
     def getGridBoundary(self):
         b_list = []
         (x_min, y_min, x_max, y_max) = self.bbox()
@@ -174,70 +175,74 @@ class TorusCurvePolygone:
                 if (self.isBoundary([x, y], self.edges)):
                     b_list.append([x, y])
         return np.array(b_list)
+    
+    # after this point is functions are not complete
+    def list_gamma_p(self):
 
-    def getKernel(self): #directly from the original code
-        k = set()
-        for s in self.ker.values():
-            k = k.union(s)
-        l = list(k)
-        l.sort()
-        return l
+        # gp_list = np.array([])
+        # gp_list_aux = np.array([])
 
-    def showTorus(self): #directly from the original code
-        img = np.zeros((self.resolution,self.resolution), dtype=np.int8)
-        curve = [p[1] for p in self.plot]
-        for (x,y) in curve:
-           img[y,x] = 255
-        torus = Image.fromarray(img, mode="L")
-        torus.show()
+        # nbE = np.shape(self.edges)[0]
+        # sides = np.zeros((2*nbE, 2), dtype = int)
+        # for j in range(nbE):
+        #     sides[2*j] = self.edges[j]
+        #     sides[2*j+1] = self.edges[j]
+        # sides = np.reshape(np.roll(sides, -1, axis = 0), (nbE, 2, 2))
 
-    def saveTorus(self, myfile): #directly from the original code
-        img = np.zeros((self.resolution,self.resolution), dtype=np.int8)
-        curve = [p[1] for p in self.plot]
-        for (x,y) in curve:
-           img[y,x] = 255
-        torus = Image.fromarray(img, mode="L")
-        torus.save(myfile + ".png")
-
-    def showdig(self): #directly from the original code
-        img = np.zeros((self.bbx[2]-self.bbx[0],self.bbx[3]-self.bbx[1]), dtype=np.int8)         
-        for (y,x) in self.getKernel():
-            img[x - self.bbx[0], y - self.bbx[1]] = 3
-        for (y,x) in self.getGridBoundary():
-            img[x - self.bbx[0], y - self.bbx[1]] = 1
-        for (y,x) in self.getDig():
-            img[x - self.bbx[0], y - self.bbx[1]] = 2
+        # for i in self.boundary_points:
+        #     carre = np.array([[i[0]  , i[1]  ],
+        #                       [i[0]+1, i[1]  ],
+        #                       [i[0]+1, i[1]+1],
+        #                       [i[0]  , i[1]+1]])
+        return np.array([[[-2, 0]   ,  [-1, 1]],
+                         [[-1, 1]   ,  [0, 2/3]],
+                         [[0, 2/3]  ,  [1, 1/3]],
+                         [[1, 1/3]  ,  [2, 0]],
+                         [[2, 0]    ,  [1, -1/2]],
+                         [[1, -1/2] ,  [0, -1]],
+                         [[0, -1]   ,  [-1, -1/2]],
+                         [[-1, -1/2],  [-2, 0]]])
             
-        dig = Image.fromarray(img, mode="L")
-        dig.putpalette([0,0,0,255,0,0,0,255,0,0,0,255])
-        dig.show()
-
-    def saveDig(self, myfile): #directly from the original code
-        img = np.zeros((self.bbx[2]-self.bbx[0],self.bbx[3]-self.bbx[1]), dtype=np.int8)         
-        for (y,x) in self.getKernel():
-            img[x - self.bbx[0], y - self.bbx[1]] = 3
-        for (y,x) in self.getGridBoundary():
-            img[x - self.bbx[0], y - self.bbx[1]] = 1
-        for (y,x) in self.getDig():
-            img[x - self.bbx[0], y - self.bbx[1]] = 2
-            
-        dig = Image.fromarray(img, mode="L")
-        dig.putpalette([0,0,0,255,0,0,0,255,0,0,0,255])
-        dig.save(myfile + ".png")
+    def draw_line(self, t, segment, current):
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if((i != 0 or j != 0) and t[current[0]+i][current[0]+j] == 0):
+                    if(self.testMembershipGamma_pEtPixel((current+[i, j]), segment)):
+                        t[current[0]+i][current[1]+j] = 255
+                        self.draw_line(t, segment, current + [i+ j])
+                    
+        
+    def draw_torus(self):
+        t = np.zeros((self.resolution, self.resolution), dtype = np.int8)
+        for i in self.gamma_p:
+            self.draw_line(t, i, [0, 0])
+        return t
 
 
 if __name__ == '__main__':
     
     edges = np.array([[-2, 0], [-1, 1], [2, 0], [0, -1]])
-    res = 256
+    res = 1024
     quad = TorusCurvePolygone(edges=edges, resolution=res)
+    print("bbox :", quad.bbx)
+    print("boundary_points :")
+    print(quad.boundary_points)
     
     
     
+    # torus = np.zeros((res, res))
     
+    # for i in range(res):
+    #     for j in range(res):
+    #         c = np.array([i, j])
+    #         r = quad.findMembershipOfPixel(c)
+    #         if len(r) != 0:
+    #             torus[i][j] = 255
     
-    
-    
+    # img = Image.fromarray(torus, mode="L")
+    # img.show()
+    plt.imshow(quad.torus)
+    plt.show()
     
     
     
