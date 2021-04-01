@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 
 class TorusCurvePolygone:
 
-    def __init__(self, edges, resolution=None, round_func=floor, tolerance=0):
-        self.edges = edges
+    def __init__(self, vertices, resolution=None, round_func=floor, tolerance=0):
+        self.vertices = vertices
         self._round = round_func #?
         self.tolerance = tolerance
         self.bbx = self.bbox()
@@ -60,7 +60,7 @@ class TorusCurvePolygone:
         if (((a-c)*(f-h)-(b-d)*(e-g)) != 0):
             t = ((a-e)*(f-h)-(b-f)*(e-g))/((a-c)*(f-h)-(b-d)*(e-g))
             u = ((c-a)*(b-f)-(d-b)*(a-e))/((a-c)*(f-h)-(b-d)*(e-g))
-            return ((t >= 0) and (t < 1) and (u >= 0) and (u <= 1))
+            return ((t >= 0) and (t < 1) and (u >= 0) and (u < 1))
         else:
             print("Possible error in testIntersection two segments")
             return False
@@ -113,14 +113,7 @@ class TorusCurvePolygone:
                           [p[0]+1, p[1]+1],
                           [p[0]  , p[1]+1]])
         
-        nbE = np.shape(E)[0]
-        sides = np.zeros((2*nbE, 2), dtype = int)
-        
-        for i in range(nbE):
-            sides[2*i] = E[i]
-            sides[2*i+1] = E[i]
-        
-        sides = np.reshape(np.roll(sides, -1, axis = 0), (nbE, 2, 2))
+        sides = TorusCurvePolygone.getEdgesFromVertices(E)
         
         result = False
         for i in sides:
@@ -137,6 +130,16 @@ class TorusCurvePolygone:
         a = np.array([[x, y], [x, y]])
         return np.subtract(Tips, a)
 
+    @staticmethod
+    def getEdgesFromVertices(V):
+        nbE = np.shape(V)[0]
+        sides = np.zeros((2*nbE, 2), dtype = int)
+        for i in range(nbE):
+            sides[2*i] = V[i]
+            sides[2*i+1] = V[i]
+        sides = np.reshape(np.roll(sides, -1, axis = 0), (nbE, 2, 2))
+        return sides
+    
     # Test if pixel c is on gamma_p of segment s.
     # c is coordinates of a pixel in range [0, resolution).
     # s is a segment.
@@ -161,8 +164,8 @@ class TorusCurvePolygone:
 
     # Returns the boundary box.
     def bbox(self):
-        x_min, y_min = self.edges.min(axis=0)
-        x_max, y_max = self.edges.max(axis=0)
+        x_min, y_min = self.vertices.min(axis=0)
+        x_max, y_max = self.vertices.max(axis=0)
         return floor(x_min)-1, floor(y_min)-1, ceil(x_max)+1, ceil(y_max)+1
 
 
@@ -172,64 +175,71 @@ class TorusCurvePolygone:
         (x_min, y_min, x_max, y_max) = self.bbox()
         for y in range(y_min, y_max):
             for x in range(x_min, x_max):
-                if (self.isBoundary([x, y], self.edges)):
+                if (self.isBoundary([x, y], self.vertices)):
                     b_list.append([x, y])
         return np.array(b_list)
     
-    # after this point is functions are not complete
+    # after this point functions are not complete
     def list_gamma_p(self):
 
         # gp_list = np.array([])
         # gp_list_aux = np.array([])
 
-        # nbE = np.shape(self.edges)[0]
-        # sides = np.zeros((2*nbE, 2), dtype = int)
-        # for j in range(nbE):
-        #     sides[2*j] = self.edges[j]
-        #     sides[2*j+1] = self.edges[j]
-        # sides = np.reshape(np.roll(sides, -1, axis = 0), (nbE, 2, 2))
+        # nbE = np.shape(self.vertices)[0]
+        # sides = TorusCurvePolygone.getEdgesFromVertices(self.vertices)
 
-        # for i in self.boundary_points:
-        #     carre = np.array([[i[0]  , i[1]  ],
-        #                       [i[0]+1, i[1]  ],
-        #                       [i[0]+1, i[1]+1],
-        #                       [i[0]  , i[1]+1]])
+        # carre = np.array([[i[0]  , i[1]  ],
+        #                   [i[0]+1, i[1]  ],
+        #                   [i[0]+1, i[1]+1],
+        #                   [i[0]  , i[1]+1]])
+        
         return np.array([[[-2, 0]   ,  [-1, 1]],
-                         [[-1, 1]   ,  [0, 2/3]],
-                         [[0, 2/3]  ,  [1, 1/3]],
-                         [[1, 1/3]  ,  [2, 0]],
-                         [[2, 0]    ,  [1, -1/2]],
-                         [[1, -1/2] ,  [0, -1]],
-                         [[0, -1]   ,  [-1, -1/2]],
-                         [[-1, -1/2],  [-2, 0]]])
+                          [[-1, 1]   ,  [0, 2/3]],
+                          [[0, 2/3]  ,  [1, 1/3]],
+                          [[1, 1/3]  ,  [2, 0]],
+                          [[2, 0]    ,  [1, -1/2]],
+                          [[1, -1/2] ,  [0, -1]],
+                          [[0, -1]   ,  [-1, -1/2]],
+                          [[-1, -1/2],  [-2, 0]]])
             
     def draw_line(self, t, segment, current):
+        taux = np.copy(t)
         for i in range(-1, 2):
             for j in range(-1, 2):
-                if((i != 0 or j != 0) and t[current[0]+i][current[0]+j] == 0):
-                    if(self.testMembershipGamma_pEtPixel((current+[i, j]), segment)):
-                        t[current[0]+i][current[1]+j] = 255
-                        self.draw_line(t, segment, current + [i+ j])
-                    
+                if((i != 0 or j != 0) and (current[0]+i >= 0) and (current[1]+j >= 0) and (current[0]+i < self.resolution) and (current[1]+j < self.resolution) and (self.testMembershipGamma_pEtPixel(([current[0]+i, current[1]+j]), segment)) and (t[current[0]+i][current[1]+j] == 0)):
+                    taux[current[0]][current[1]] = 255    
+                    taux = self.draw_line(taux, segment, [current[0]+i, current[1]+j] )
+        return taux
         
     def draw_torus(self):
-        t = np.zeros((self.resolution, self.resolution), dtype = np.int8)
+        t = np.zeros((self.resolution, self.resolution), dtype = np.int16)
         for i in self.gamma_p:
-            self.draw_line(t, i, [0, 0])
+            taux = np.zeros((self.resolution, self.resolution), dtype = np.int64)
+            a = TorusCurvePolygone.gpToGp01(i)
+            [c1, c2] = [floor(a[0][0]*self.resolution), floor(a[0][1]*self.resolution)]
+            [c3, c4] = [floor(a[1][0]*self.resolution), floor(a[1][1]*self.resolution)]
+            if c1 == self.resolution:
+                c1 -= 1
+            if c2 == self.resolution:
+                c2 -= 1
+            if c3 == self.resolution:
+                c3 -= 1
+            if c4 == self.resolution:
+                c4 -= 1
+
+            taux[c1][c2] = 255
+            taux[c3][c4] = 255
+            taux = self.draw_line(taux, i, [c1, c2])
+
+            t = np.maximum(t, taux)
         return t
 
 
 if __name__ == '__main__':
     
-    edges = np.array([[-2, 0], [-1, 1], [2, 0], [0, -1]])
+    vertices = np.array([[-2, 0], [-1, 1], [2, 0], [0, -1]])
     res = 1024
-    quad = TorusCurvePolygone(edges=edges, resolution=res)
-    print("bbox :", quad.bbx)
-    print("boundary_points :")
-    print(quad.boundary_points)
-    
-    
-    
+    quad = TorusCurvePolygone(vertices=vertices, resolution=res)
     # torus = np.zeros((res, res))
     
     # for i in range(res):
@@ -241,28 +251,6 @@ if __name__ == '__main__':
     
     # img = Image.fromarray(torus, mode="L")
     # img.show()
+    print(quad.gamma_p)
     plt.imshow(quad.torus)
     plt.show()
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
