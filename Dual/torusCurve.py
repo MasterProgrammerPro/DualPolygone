@@ -238,7 +238,7 @@ class TorusCurvePolygone:
 if __name__ == '__main__':
     
     vertices = np.array([[-2, 0], [-1, 1], [2, 0], [0, -1]])
-    res = 1024
+    res = 512
     quad = TorusCurvePolygone(vertices=vertices, resolution=res)
     # torus = np.zeros((res, res))
     
@@ -249,8 +249,5 @@ if __name__ == '__main__':
     #         if len(r) != 0:
     #             torus[i][j] = 255
     
-    # img = Image.fromarray(torus, mode="L")
-    # img.show()
-    print(quad.gamma_p)
     plt.imshow(quad.torus)
     plt.show()
