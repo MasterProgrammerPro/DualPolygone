@@ -62,7 +62,7 @@ class TorusCurvePolygone:
             u = ((c-a)*(b-f)-(d-b)*(a-e))/((a-c)*(f-h)-(b-d)*(e-g))
             return ((t >= 0) and (t < 1) and (u >= 0) and (u < 1))
         else:
-            print("Possible error in testIntersection two segments")
+            #print("Possible error in testIntersection two segments")
             return False
 
     # Returns intersection point of two segments
@@ -181,26 +181,29 @@ class TorusCurvePolygone:
     
     # after this point functions are not complete
     def list_gamma_p(self):
-
-        # gp_list = np.array([])
-        # gp_list_aux = np.array([])
-
-        # nbE = np.shape(self.vertices)[0]
-        # sides = TorusCurvePolygone.getEdgesFromVertices(self.vertices)
-
-        # carre = np.array([[i[0]  , i[1]  ],
-        #                   [i[0]+1, i[1]  ],
-        #                   [i[0]+1, i[1]+1],
-        #                   [i[0]  , i[1]+1]])
+        gp_list = np.empty((0,2,2))
         
-        return np.array([[[-2, 0]   ,  [-1, 1]],
-                          [[-1, 1]   ,  [0, 2/3]],
-                          [[0, 2/3]  ,  [1, 1/3]],
-                          [[1, 1/3]  ,  [2, 0]],
-                          [[2, 0]    ,  [1, -1/2]],
-                          [[1, -1/2] ,  [0, -1]],
-                          [[0, -1]   ,  [-1, -1/2]],
-                          [[-1, -1/2],  [-2, 0]]])
+
+        #nbE = np.shape(self.vertices)[0]
+        sides = TorusCurvePolygone.getEdgesFromVertices(self.vertices)
+
+        for i in self.boundary_points:
+            gp_list_aux = np.empty((0,2))
+            carre = np.array([[i[0]  , i[1]  ],
+                              [i[0]+1, i[1]  ],
+                              [i[0]+1, i[1]+1],
+                              [i[0]  , i[1]+1]])
+            for j in sides:
+                intersectingSides = TorusCurvePolygone.testIntersectionSegmentSquare(j, carre)
+                for k in range(4):
+                    if (intersectingSides & 1 << k) :
+                        gp_list_aux = np.append(gp_list_aux, [TorusCurvePolygone.intersection(j, [carre[k], carre[(k+1)%4]])], axis = 0)
+            if len(gp_list_aux) == 1 :
+                gp_list = np.append(gp_list, [np.append(gp_list_aux, gp_list_aux, axis = 0)], axis = 0)
+            else:
+                gp_list = np.append(gp_list, [gp_list_aux], axis = 0)
+        return gp_list
+
             
     def draw_line(self, t, segment, current):
         taux = np.copy(t)
@@ -249,5 +252,6 @@ if __name__ == '__main__':
     #         if len(r) != 0:
     #             torus[i][j] = 255
     
+    print(quad.gamma_p)
     plt.imshow(quad.torus)
     plt.show()
